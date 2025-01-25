@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Baby,happy new year</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: black;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="fireworksCanvas"></canvas>
+    <!-- 引用 GitHub 托管的音频文件 -->
+    <audio id="heartSound" src="https://scby854.github.io/YYue/heart.mp3" preload="auto"></audio>
+    <audio id="riseSound" src="https://scby854.github.io/YYue/rise.mp3" preload="auto"></audio>
+    <audio id="explodeSound" src="https://scby854.github.io/YYue/explode.mp3" preload="auto"></audio>
+    <script>
+        const canvas = document.getElementById('fireworksCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const fireworks = [];
+        const particles = [];
+        const danmakus = [];
+        const hearts = [];
+
+        let lastClickTime = 0;
+        let clickInterval = 1000;
+
+        // 获取音频元素
+        const heartSound = document.getElementById('heartSound');
+        const riseSound = document.getElementById('riseSound');
+        const explodeSound = document.getElementById('explodeSound');
+
+        class Firework {
+            constructor(x, targetY, color, speed) {
+                this.x = x;
+                this.y = canvas.height;
+                this.targetY = targetY;
+                this.color = color;
+                this.speed = speed;
+                this.exploded = false;
+                this.tail = [];
+                this.size = Math.random() * 4 + 6;
+                this.wobble = Math.random() * 0.3 + 0.1;
+                this.wobbleSpeed = Math.random() * 0.05 + 0.02;
+
+                // 播放烟花上升音
+                riseSound.currentTime = 0;
+                riseSound.play();
+            }
+
+            update() {
+                this.tail.push({ x: this.x, y: this.y });
+                if (this.tail.length > 10) this.tail.shift();
+
+                this.x += Math.sin(this.y * this.wobbleSpeed) * this.wobble;
+                this.y -= this.speed;
+                this.size *= 0.98;
+
+                if (this.y <= this.targetY && !this.exploded) {
+                    this.exploded = true;
+                    this.explode();
+                }
+            }
+
+            draw() {
+                for (let i = 0; i < this.tail.length; i++) {
+                    const opacity = i / this.tail.length;
+                    const tailDot = this.tail[i];
+                    ctx.beginPath();
+                    ctx.arc(tailDot.x, tailDot.y, 2, 0, Math.PI * 2);
+                    ctx.fillStyle = this.color;
+                    ctx.globalAlpha = opacity * 0.8;
+                    ctx.fill();
+                }
+                ctx.globalAlpha = 1;
+
+                if (!this.exploded) {
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                    ctx.fillStyle = this.color;
+                    ctx.fill();
+                }
+            }
+
+            explode() {
+                const particleCount = Math.random() * 150 + 200;
+                const spread = Math.PI * 2;
+                for (let i = 0; i < particleCount; i++) {
+                    const angle = Math.random() * spread;
+                    const speed = Math.random() * 3 + 1.5;
+                    const particleColor = this.color;
+                    particles.push(new Particle(this.x, this.y, particleColor, angle, speed));
+                }
+
+                // 播放烟花绽放音
+                explodeSound.currentTime = 0;
+                explodeSound.play();
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color, angle, speed) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.angle = angle;
+                this.speed = speed;
+                this.alpha = 1;
+                this.decay = Math.random() * 0.008 + 0.005;
+                this.gravity = 0.03;
+                this.friction = 0.98;
+                this.size = Math.random() * 2.5 + 1.5;
+                this.deltaSize = -0.015;
+            }
+
+            update() {
+                this.x += Math.cos(this.angle) * this.speed;
+                this.y += Math.sin(this.angle) * this.speed + this.gravity;
+                this.speed *= this.friction;
+                this.alpha -= this.decay;
+                this.size += this.deltaSize;
+                if (this.size < 0) this.size = 0;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        class Danmaku {
+            constructor(text) {
+                this.text = text;
+                this.x = canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.speed = Math.random() * 1.5 + 1;
+                this.fontSize = Math.random() * 20 + 15;
+                this.color = 'red';
+            }
+
+            update() {
+                this.x -= this.speed;
+                if (this.x + this.fontSize < 0) return true;
+                return false;
+            }
+
+            draw() {
+                ctx.font = `${this.fontSize}px Arial`;
+                ctx.fillStyle = this.color;
+                ctx.fillText(this.text, this.x, this.y);
+            }
+        }
+
+        class Heart {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.size = 30;
+                this.alpha = 1;
+                this.color = 'red';
+                this.decay = 0.01;
+                this.sizeDecay = 0.1;
+                this.velocity = { x: (Math.random() - 0.5) * 2, y: -Math.random() * 2 };
+            }
+
+            update() {
+                this.alpha -= this.decay;
+                this.size -= this.sizeDecay;
+                this.x += this.velocity.x;
+                this.y += this.velocity.y;
+                if (this.alpha <= 0 || this.size <= 0) return true;
+                return false;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                ctx.bezierCurveTo(this.x - this.size / 2, this.y - this.size / 2, this.x - this.size, this.y + this.size / 2, this.x, this.y + this.size);
+                ctx.bezierCurveTo(this.x + this.size, this.y + this.size / 2, this.x + this.size / 2, this.y - this.size / 2, this.x, this.y);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        function createFireworks(x, speed) {
+            const colors = ['#FF1461', '#18FF92', '#5A87FF', '#FBF38C', '#FF5722', '#FF6F61'];
+            const targetY = Math.random() * canvas.height * 0.5 + 100;
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            fireworks.push(new Firework(x, targetY, color, speed));
+        }
+
+        function createDanmaku() {
+            const texts = ['新年快乐', '所念即所得', '禁止蕉绿', '好运连连','Happy New Year ~'];
+            const text = texts[Math.floor(Math.random() * texts.length)];
+            danmakus.push(new Danmaku(text));
+        }
+
+        function animate() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            fireworks.forEach((firework, index) => {
+                firework.update();
+                firework.draw();
+                if (firework.exploded) fireworks.splice(index, 1);
+            });
+
+            particles.forEach((particle, index) => {
+                if (particle.alpha <= 0) {
+                    particles.splice(index, 1);
+                } else {
+                    particle.update();
+                    particle.draw();
+                }
+            });
+
+            for (let i = 0; i < danmakus.length; i++) {
+                const danmaku = danmakus[i];
+                danmaku.update();
+                danmaku.draw();
+                if (danmaku.update()) {
+                    danmakus.splice(i, 1);
+                    i--;
+                }
+            }
+
+            for (let i = 0; i < hearts.length; i++) {
+                const heart = hearts[i];
+                heart.update();
+                heart.draw();
+                if (heart.update()) {
+                    hearts.splice(i, 1);
+                    i--;
+                }
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        canvas.addEventListener('click', (e) => {
+            const currentTime = Date.now();
+            const timeSinceLastClick = currentTime - lastClickTime;
+            lastClickTime = currentTime;
+
+            const speed = Math.max(2, 10 - timeSinceLastClick / 100);
+            clickInterval = timeSinceLastClick;
+
+            createFireworks(e.clientX, speed);
+
+            // 播放爱心触发音
+            heartSound.currentTime = 0;
+            heartSound.play();
+
+            hearts.push(new Heart(e.clientX, e.clientY));
+        });
+
+        setInterval(() => {
+            const x = Math.random() * canvas.width;
+            const speed = Math.random() * 3 + 2;
+            createFireworks(x, speed);
+        }, 1500);
+
+        setInterval(createDanmaku, 2000);
+        animate();
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+    </script>
+</body>
+</html>
